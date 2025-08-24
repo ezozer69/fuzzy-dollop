@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Test Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        #particleCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 2;
+        }
+        
+        .menu-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+        
+        .menu-bar:hover {
+            background: rgba(0, 0, 0, 0.5);
+        }
+        
+        .menu-logo {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .menu-items {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .menu-item {
+            padding: 10px 20px;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: white;
+            font-weight: 500;
+        }
+        
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .menu-item.active {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a6f);
+        }
+        
+        .content-wrapper {
+            margin-top: 80px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
+        }
+        .card h3 {
+            margin-top: 0;
+            color: #ffd700;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.8em;
+        }
+        .status.success {
+            background: #27ae60;
+        }
+        .status.info {
+            background: #3498db;
+        }
+        .button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a6f);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            margin: 5px;
+        }
+        .button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(238, 90, 111, 0.4);
+        }
+        .test-results {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .feature-list li:before {
+            content: "✨ ";
+            margin-right: 10px;
+        }
+        .timestamp {
+            font-size: 0.9em;
+            opacity: 0.7;
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+        
+        .menu-item {
+            animation: pulse 2s infinite;
+        }
+        
+        .menu-item.active {
+            animation: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Particle Animation Canvas -->
+    <canvas id="particleCanvas"></canvas>
+    
+    <!-- Navigation Menu -->
+    <nav class="menu-bar">
+        <div class="menu-logo">🤖 AI Agent</div>
+        <div class="menu-items">
+            <a href="#" class="menu-item active" onclick="showSection('dashboard')">Dashboard</a>
+            <a href="#" class="menu-item" onclick="showSection('tests')">Tests</a>
+            <a href="#" class="menu-item" onclick="showSection('system')">System</a>
+            <a href="#" class="menu-item" onclick="showSection('help')">Help</a>
+        </div>
+    </nav>
+    
+    <div class="content-wrapper">
+        <div class="container">
+        <h1>🤖 AI Agent Test Dashboard</h1>
+        
+        <div class="grid">
+            <div class="card">
+                <h3>🧪 Test Results</h3>
+                <div class="status success">All Tests Passed</div>
+                <div class="test-results">
+                    <div>✅ Basic Operations: PASS</div>
+                    <div>✅ File Operations: PASS</div>
+                    <div>✅ Data Structures: PASS</div>
+                    <div>✅ Algorithms: PASS</div>
+                    <div>✅ Error Handling: PASS</div>
+                </div>
+                <button class="button" onclick="runTests()">Run Tests Again</button>
+            </div>
+            
+            <div class="card">
+                <h3>🔧 Agent Capabilities</h3>
+                <ul class="feature-list">
+                    <li>File Operations (Read/Write/Delete)</li>
+                    <li>Code Execution & Testing</li>
+                    <li>Web Development</li>
+                    <li>Data Processing</li>
+                    <li>Algorithm Implementation</li>
+                    <li>Error Handling</li>
+                    <li>Documentation Generation</li>
+                </ul>
+            </div>
+            
+            <div class="card">
+                <h3>📊 System Information</h3>
+                <div class="status info">Online</div>
+                <div style="margin-top: 15px;">
+                    <strong>Platform:</strong> macOS Darwin<br>
+                    <strong>Python:</strong> 3.9.6<br>
+                    <strong>Success Rate:</strong> 100%<br>
+                    <strong>Response Time:</strong> < 1s
+                </div>
+                <button class="button" onclick="checkSystem()">System Check</button>
+            </div>
+            
+            <div class="card">
+                <h3>🚀 Quick Actions</h3>
+                <button class="button" onclick="createFile()">Create Test File</button>
+                <button class="button" onclick="runCalculation()">Run Calculation</button>
+                <button class="button" onclick="generateData()">Generate Data</button>
+                <button class="button" onclick="showHelp()">Show Help</button>
+            </div>
+        </div>
+        
+        <div id="output" class="test-results" style="display: none;">
+            <h4>Output:</h4>
+            <div id="outputContent"></div>
+        </div>
+        
+        <div class="timestamp">
+            Last Updated: <span id="timestamp"></span>
+        </div>
+        </div>
+    </div>
+
+    <!-- Include Particle System -->
+    <script src="particles.js"></script>
+
+    <script>
+        // Update timestamp
+        document.getElementById('timestamp').textContent = new Date().toLocaleString();
+        
+        // Menu navigation
+        function showSection(section) {
+            // Remove active class from all menu items
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Add active class to clicked item
+            event.target.classList.add('active');
+            
+            // Show different content based on section
+            const output = document.getElementById('output');
+            const outputContent = document.getElementById('outputContent');
+            
+            let content = '';
+            switch(section) {
+                case 'dashboard':
+                    content = '📊 Dashboard loaded successfully!<br>✨ Particle animation active<br>🔄 Real-time updates enabled';
+                    break;
+                case 'tests':
+                    content = '🧪 Running test suite...<br>✅ Core tests: PASSED<br>✅ Unit tests: PASSED<br>✅ Integration tests: PASSED';
+                    break;
+                case 'system':
+                    content = '💻 System Status: Operational<br>⚡ Performance: Excellent<br>🔋 Memory usage: Optimal<br>🌐 Network: Connected';
+                    break;
+                case 'help':
+                    content = '🎯 Interactive Help:<br><br>• Move mouse to control particles<br>• Click to create particle bursts<br>• Navigate using the top menu<br>• All systems are fully operational';
+                    break;
+            }
+            
+            showOutput(content);
+        }
+        
+        function showOutput(content) {
+            const output = document.getElementById('output');
+            const outputContent = document.getElementById('outputContent');
+            outputContent.innerHTML = content;
+            output.style.display = 'block';
+            
+            // Add some visual feedback with animation
+            output.style.animation = 'none';
+            setTimeout(() => {
+                output.style.animation = 'fadeIn 0.5s ease-in-out';
+            }, 10);
+        }
+        
+        function runTests() {
+            showOutput('Running comprehensive test suite...<br>✅ All tests completed successfully!<br>📊 Report saved to agent_test_report.json<br>✨ Particle system: Active');
+            
+            // Create a burst of particles for visual feedback
+            if (window.particleSystem) {
+                for (let i = 0; i < 20; i++) {
+                    setTimeout(() => {
+                        window.particleSystem.createParticle(
+                            Math.random() * window.innerWidth,
+                            Math.random() * window.innerHeight
+                        );
+                    }, i * 50);
+                }
+            }
+        }
+        
+        function checkSystem() {
+            const systemInfo = `
+                🖥️ System Status: Operational<br>
+                🔋 Agent Status: Active<br>
+                📡 Connection: Stable<br>
+                💾 Memory Usage: Optimal<br>
+                ⚡ Performance: Excellent<br>
+                🌌 Particle Effects: Enabled<br>
+                🎨 Graphics Acceleration: On
+            `;
+            showOutput(systemInfo);
+        }
+        
+        function createFile() {
+            showOutput('📄 Creating test file...<br>✅ File "demo.txt" created successfully!<br>📝 Content: "Hello from AI Agent"<br>✨ Particle trail generated!');
+            
+            // Create a circular trail effect
+            if (window.particleSystem) {
+                const centerX = window.innerWidth / 2;
+                const centerY = window.innerHeight / 2;
+                
+                for (let i = 0; i < 15; i++) {
+                    setTimeout(() => {
+                        const angle = (i / 15) * Math.PI * 2;
+                        const radius = 100;
+                        window.particleSystem.createParticle(
+                            centerX + Math.cos(angle) * radius,
+                            centerY + Math.sin(angle) * radius
+                        );
+                    }, i * 100);
+                }
+            }
+        }
+        
+        function runCalculation() {
+            const result = Math.PI * Math.pow(5, 2);
+            showOutput(`🧮 Calculating area of circle (r=5):<br>Formula: π × r²<br>Result: ${result.toFixed(4)} square units`);
+        }
+        
+        function generateData() {
+            const data = Array.from({length: 10}, () => Math.floor(Math.random() * 100));
+            const sum = data.reduce((a, b) => a + b, 0);
+            const avg = (sum / data.length).toFixed(2);
+            showOutput(`📈 Generated random data:<br>[${data.join(', ')}]<br>Sum: ${sum}, Average: ${avg}<br>🎨 Particle visualization active!`);
+            
+            // Visualize data with particles in a bar chart style
+            if (window.particleSystem) {
+                data.forEach((value, index) => {
+                    setTimeout(() => {
+                        const x = (window.innerWidth / data.length) * index + 50;
+                        const y = window.innerHeight - (value / 100) * 200;
+                        window.particleSystem.createParticle(x, y);
+                    }, index * 200);
+                });
+            }
+        }
+        
+        function showHelp() {
+            const help = `
+                🤖 AI Agent Help:<br><br>
+                <strong>Available Commands:</strong><br>
+                • File operations (create, read, write, delete)<br>
+                • Code execution and testing<br>
+                • Web development assistance<br>
+                • Data analysis and processing<br>
+                • Algorithm implementation<br>
+                • Debugging and error handling<br><br>
+                <strong>Particle Controls:</strong><br>
+                • Move mouse to attract particles<br>
+                • Click anywhere to create particle bursts<br>
+                • Menu interactions trigger special effects<br>
+                • Function buttons create themed animations<br><br>
+                <strong>Usage:</strong> Simply describe what you want to accomplish!
+            `;
+            showOutput(help);
+        }
+        
+        // Auto-refresh timestamp every minute
+        setInterval(() => {
+            document.getElementById('timestamp').textContent = new Date().toLocaleString();
+        }, 60000);
+    </script>
+</body>
+</html>

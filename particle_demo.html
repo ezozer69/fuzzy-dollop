@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Particle Animation Demo - Mouse Tracking</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: white;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        #particleCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            z-index: 10;
+            font-size: 14px;
+            line-height: 1.6;
+            backdrop-filter: blur(10px);
+        }
+        
+        .mouse-coords {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 10;
+            font-family: 'Courier New', monospace;
+            backdrop-filter: blur(10px);
+        }
+        
+        .particle-count {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 255, 100, 0.2);
+            padding: 10px 15px;
+            border-radius: 5px;
+            z-index: 10;
+            font-weight: bold;
+        }
+        
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 100, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 10;
+            max-width: 300px;
+        }
+        
+        .title {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3em;
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            opacity: 0.3;
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.6; }
+        }
+        
+        .title {
+            animation: pulse 3s infinite;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="particleCanvas"></canvas>
+    
+    <div class="title">
+        🌟 Particle Animation Demo 🌟<br>
+        <div style="font-size: 0.4em; margin-top: 20px;">Mouse Tracking System</div>
+    </div>
+    
+    <div class="info-panel">
+        <h3>🎯 Particle System Features:</h3>
+        <div>✨ <strong>Mouse Attraction:</strong> Particles follow cursor</div>
+        <div>💥 <strong>Click Bursts:</strong> Click to create explosions</div>
+        <div>🔗 <strong>Connections:</strong> Lines between nearby particles</div>
+        <div>🌈 <strong>Color Variety:</strong> Dynamic color generation</div>
+        <div>👻 <strong>Trails:</strong> Particles leave glowing trails</div>
+        <div>⚡ <strong>Physics:</strong> Realistic movement simulation</div>
+    </div>
+    
+    <div class="mouse-coords">
+        <div>🖱️ <strong>Mouse Position:</strong></div>
+        <div>X: <span id="mouseX">0</span></div>
+        <div>Y: <span id="mouseY">0</span></div>
+        <div>Attraction Zone: <span id="attractionZone">❌</span></div>
+    </div>
+    
+    <div class="particle-count">
+        🎨 Active Particles: <span id="particleCount">0</span>
+    </div>
+    
+    <div class="instructions">
+        <h4>🎮 Controls:</h4>
+        <div>• <strong>Move mouse</strong> → Attract particles</div>
+        <div>• <strong>Click</strong> → Create particle burst</div>
+        <div>• <strong>Hold click</strong> → Continuous creation</div>
+        <div>• <strong>Move fast</strong> → Trail effects</div>
+    </div>
+
+    <script>
+        class EnhancedParticleSystem {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.particles = [];
+                this.mouse = { x: 0, y: 0 };
+                this.maxParticles = 100;
+                this.isMouseDown = false;
+                
+                this.setupCanvas();
+                this.bindEvents();
+                this.createInitialParticles();
+                this.animate();
+                this.updateUI();
+            }
+            
+            setupCanvas() {
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+            }
+            
+            resizeCanvas() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            }
+            
+            bindEvents() {
+                document.addEventListener('mousemove', (e) => {
+                    this.mouse.x = e.clientX;
+                    this.mouse.y = e.clientY;
+                    
+                    // Update UI
+                    document.getElementById('mouseX').textContent = Math.round(this.mouse.x);
+                    document.getElementById('mouseY').textContent = Math.round(this.mouse.y);
+                    
+                    // Check if mouse is in attraction zone of any particle
+                    let inZone = false;
+                    for (let particle of this.particles) {
+                        const dx = this.mouse.x - particle.x;
+                        const dy = this.mouse.y - particle.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        if (distance < 300) { // Match the attraction zone
+                            inZone = true;
+                            break;
+                        }
+                    }
+                    document.getElementById('attractionZone').textContent = inZone ? '✅' : '❌';
+                    
+                    // Create particles when moving (more responsive)
+                    if (this.particles.length < this.maxParticles && Math.random() < 0.2) {
+                        this.createParticle(
+                            this.mouse.x + (Math.random() - 0.5) * 50,
+                            this.mouse.y + (Math.random() - 0.5) * 50
+                        );
+                    }
+                });
+                
+                document.addEventListener('mousedown', (e) => {
+                    this.isMouseDown = true;
+                    this.createBurst(e.clientX, e.clientY, 8);
+                });
+                
+                document.addEventListener('mouseup', () => {
+                    this.isMouseDown = false;
+                });
+                
+                document.addEventListener('click', (e) => {
+                    // Create extra burst on click
+                    this.createBurst(e.clientX, e.clientY, 15);
+                });
+            }
+            
+            createInitialParticles() {
+                for (let i = 0; i < 30; i++) {
+                    this.createParticle(
+                        Math.random() * this.canvas.width,
+                        Math.random() * this.canvas.height
+                    );
+                }
+            }
+            
+            createParticle(x, y) {
+                const particle = {
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 3,
+                    vy: (Math.random() - 0.5) * 3,
+                    size: Math.random() * 4 + 1,
+                    life: 1.0,
+                    decay: Math.random() * 0.0002 + 0.0001, // Much much slower decay
+                    color: {
+                        r: Math.floor(Math.random() * 255),
+                        g: Math.floor(Math.random() * 255),
+                        b: Math.floor(Math.random() * 255)
+                    },
+                    trail: [],
+                    energy: Math.random() * 2 + 1
+                };
+                
+                this.particles.push(particle);
+                
+                if (this.particles.length > this.maxParticles) {
+                    this.particles.shift();
+                }
+            }
+            
+            createBurst(x, y, count) {
+                for (let i = 0; i < count; i++) {
+                    const angle = (i / count) * Math.PI * 2;
+                    const speed = Math.random() * 5 + 2;
+                    const particle = {
+                        x: x,
+                        y: y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        size: Math.random() * 3 + 2,
+                        life: 1.0,
+                        decay: Math.random() * 0.0003 + 0.0001, // Very slow decay for burst
+                        color: {
+                            r: 255,
+                            g: Math.floor(Math.random() * 200) + 55,
+                            b: Math.floor(Math.random() * 100)
+                        },
+                        trail: [],
+                        energy: Math.random() * 3 + 2
+                    };
+                    this.particles.push(particle);
+                }
+            }
+            
+            updateParticles() {
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const particle = this.particles[i];
+                    
+                    // Add to trail
+                    particle.trail.push({ x: particle.x, y: particle.y, life: particle.life });
+                    if (particle.trail.length > 15) {
+                        particle.trail.shift();
+                    }
+                    
+                    // Mouse attraction - Much stronger and more responsive
+                    const dx = this.mouse.x - particle.x;
+                    const dy = this.mouse.y - particle.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 300 && distance > 0) { // Larger attraction zone
+                        const force = (300 - distance) / 300 * 1.5; // Stronger force
+                        const normalizedDx = dx / distance;
+                        const normalizedDy = dy / distance;
+                        particle.vx += normalizedDx * force * 0.5; // More responsive
+                        particle.vy += normalizedDy * force * 0.5;
+                    }
+                    
+                    // Add some controlled randomness (less chaotic)
+                    particle.vx += (Math.random() - 0.5) * 0.1;
+                    particle.vy += (Math.random() - 0.5) * 0.1;
+                    
+                    // Apply lighter drag to maintain movement
+                    particle.vx *= 0.98;
+                    particle.vy *= 0.98;
+                    
+                    // Update position
+                    particle.x += particle.vx;
+                    particle.y += particle.vy;
+                    
+                    // Bounce off edges with better physics
+                    if (particle.x <= 5 || particle.x >= this.canvas.width - 5) {
+                        particle.vx *= -0.8;
+                        particle.x = Math.max(5, Math.min(this.canvas.width - 5, particle.x));
+                        // Add a small random kick to prevent getting stuck
+                        particle.vy += (Math.random() - 0.5) * 0.5;
+                    }
+                    if (particle.y <= 5 || particle.y >= this.canvas.height - 5) {
+                        particle.vy *= -0.8;
+                        particle.y = Math.max(5, Math.min(this.canvas.height - 5, particle.y));
+                        // Add a small random kick to prevent getting stuck
+                        particle.vx += (Math.random() - 0.5) * 0.5;
+                    }
+                    
+                    // Update life
+                    particle.life -= particle.decay;
+                    
+                    // Remove dead particles
+                    if (particle.life <= 0) {
+                        this.particles.splice(i, 1);
+                    }
+                }
+                
+                // Continuous particle creation when mouse is down
+                if (this.isMouseDown && this.particles.length < this.maxParticles) {
+                    this.createParticle(
+                        this.mouse.x + (Math.random() - 0.5) * 20,
+                        this.mouse.y + (Math.random() - 0.5) * 20
+                    );
+                }
+                
+                // Auto-regenerate particles to maintain animation
+                if (this.particles.length < 50) { // Higher minimum
+                    for (let i = 0; i < 2; i++) {
+                        this.createParticle(
+                            Math.random() * this.canvas.width,
+                            Math.random() * this.canvas.height
+                        );
+                    }
+                }
+                
+                // Continuous particle creation during mouse movement
+                if (Math.random() < 0.05 && this.particles.length < this.maxParticles) {
+                    this.createParticle(
+                        this.mouse.x + (Math.random() - 0.5) * 200,
+                        this.mouse.y + (Math.random() - 0.5) * 200
+                    );
+                }
+            }
+            
+            drawParticles() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw connections
+                this.drawConnections();
+                
+                // Draw trails
+                this.drawTrails();
+                
+                // Draw particles
+                this.particles.forEach(particle => {
+                    const alpha = particle.life;
+                    
+                    // Outer glow
+                    this.ctx.save();
+                    this.ctx.globalCompositeOperation = 'lighter';
+                    
+                    const gradient = this.ctx.createRadialGradient(
+                        particle.x, particle.y, 0,
+                        particle.x, particle.y, particle.size * 4
+                    );
+                    gradient.addColorStop(0, `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${alpha * 0.8})`);
+                    gradient.addColorStop(1, `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, 0)`);
+                    
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.beginPath();
+                    this.ctx.arc(particle.x, particle.y, particle.size * 4, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Core particle
+                    this.ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${alpha})`;
+                    this.ctx.beginPath();
+                    this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    this.ctx.restore();
+                });
+                
+                // Draw mouse indicator
+                this.drawMouseIndicator();
+            }
+            
+            drawConnections() {
+                this.ctx.save();
+                this.ctx.globalCompositeOperation = 'lighter';
+                
+                for (let i = 0; i < this.particles.length; i++) {
+                    for (let j = i + 1; j < this.particles.length; j++) {
+                        const p1 = this.particles[i];
+                        const p2 = this.particles[j];
+                        
+                        const dx = p1.x - p2.x;
+                        const dy = p1.y - p2.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < 120) {
+                            const alpha = (120 - distance) / 120 * 0.4 * Math.min(p1.life, p2.life);
+                            
+                            this.ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+                            this.ctx.lineWidth = 1;
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(p1.x, p1.y);
+                            this.ctx.lineTo(p2.x, p2.y);
+                            this.ctx.stroke();
+                        }
+                    }
+                }
+                
+                this.ctx.restore();
+            }
+            
+            drawTrails() {
+                this.particles.forEach(particle => {
+                    if (particle.trail.length > 1) {
+                        this.ctx.save();
+                        this.ctx.globalCompositeOperation = 'lighter';
+                        
+                        for (let i = 0; i < particle.trail.length - 1; i++) {
+                            const alpha = (i / particle.trail.length) * particle.life * 0.4;
+                            const size = (i / particle.trail.length) * particle.size * 0.8;
+                            
+                            this.ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${alpha})`;
+                            this.ctx.beginPath();
+                            this.ctx.arc(particle.trail[i].x, particle.trail[i].y, size, 0, Math.PI * 2);
+                            this.ctx.fill();
+                        }
+                        
+                        this.ctx.restore();
+                    }
+                });
+            }
+            
+            drawMouseIndicator() {
+                if (this.mouse.x > 0 && this.mouse.y > 0) {
+                    this.ctx.save();
+                    this.ctx.globalCompositeOperation = 'lighter';
+                    
+                    const time = Date.now() * 0.008;
+                    const radius = 25 + Math.sin(time) * 8;
+                    
+                    // Show attraction zone
+                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.beginPath();
+                    this.ctx.arc(this.mouse.x, this.mouse.y, 300, 0, Math.PI * 2); // Show full attraction zone
+                    this.ctx.stroke();
+                    
+                    // Pulsing rings around mouse
+                    for (let i = 0; i < 3; i++) {
+                        const ringRadius = radius + i * 15;
+                        const alpha = 0.4 - i * 0.1;
+                        
+                        this.ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+                        this.ctx.lineWidth = 2;
+                        this.ctx.beginPath();
+                        this.ctx.arc(this.mouse.x, this.mouse.y, ringRadius, 0, Math.PI * 2);
+                        this.ctx.stroke();
+                    }
+                    
+                    // Center dot
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                    this.ctx.beginPath();
+                    this.ctx.arc(this.mouse.x, this.mouse.y, 3, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    this.ctx.restore();
+                }
+            }
+            
+            updateUI() {
+                document.getElementById('particleCount').textContent = this.particles.length;
+            }
+            
+            animate() {
+                this.updateParticles();
+                this.drawParticles();
+                this.updateUI();
+                requestAnimationFrame(() => this.animate());
+                
+                // Debug: Log particle count every 60 frames
+                if (!this.frameCount) this.frameCount = 0;
+                this.frameCount++;
+                if (this.frameCount % 60 === 0) {
+                    console.log(`Particles: ${this.particles.length}, Mouse: (${this.mouse.x}, ${this.mouse.y})`);
+                }
+            }
+        }
+
+        // Initialize the enhanced particle system
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded, initializing particle system...');
+            const canvas = document.getElementById('particleCanvas');
+            if (canvas) {
+                console.log('Canvas found, creating particle system');
+                const particleSystem = new EnhancedParticleSystem(canvas);
+                window.particleSystem = particleSystem; // Make it globally accessible for debugging
+                console.log('Particle system created and started');
+            } else {
+                console.error('Canvas not found!');
+            }
+        });
+    </script>
+</body>
+</html>
